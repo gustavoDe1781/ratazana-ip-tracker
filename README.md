@@ -12,7 +12,7 @@ Um rastreador de IP escrito em Python que fornece informações de geolocalizaç
 ## Como usar
 
 1. Clone o repositório
-2. Execute: `python Ratazanaa.py`
+2. Execute: `python ratazana-ip-tracker`
 3. Escolha uma das opções do menu
 
 ## Requisitos

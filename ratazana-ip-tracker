@@ -1,0 +1,142 @@
+import requests
+import json
+import os
+
+def limpar_tela():
+    """Limpa a tela do terminal"""
+    os.system('clear' if os.name == 'posix' else 'cls')
+
+def obter_informacoes_ip(ip):
+    """Obtém informações de localização do IP"""
+    try:
+        # API gratuita para geolocalização por IP
+        url = f"http://ip-api.com/json/{ip}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            dados = response.json()
+            
+            if dados['status'] == 'success':
+                return dados
+            else:
+                return None
+        else:
+            return None
+            
+    except requests.exceptions.RequestException:
+        return None
+    except json.JSONDecodeError:
+        return None
+
+def exibir_informacoes(dados):
+    """Exibe as informações formatadas"""
+    print("═" * 50)
+    print("🌍 INFORMAÇÕES DE LOCALIZAÇÃO")
+    print("═" * 50)
+    print(f"📡 IP: {dados.get('query', 'N/A')}")
+    print(f"🏙️  País: {dados.get('country', 'N/A')}")
+    print(f"🏛️  Código do País: {dados.get('countryCode', 'N/A')}")
+    print(f"📍 Região: {dados.get('regionName', 'N/A')}")
+    print(f"🏢 Cidade: {dados.get('city', 'N/A')}")
+    print(f"📮 CEP: {dados.get('zip', 'N/A')}")
+    print(f"📡 Provedor: {dados.get('isp', 'N/A')}")
+    print(f"🌐 Organização: {dados.get('org', 'N/A')}")
+    print(f"🧭 Latitude: {dados.get('lat', 'N/A')}")
+    print(f"🧭 Longitude: {dados.get('lon', 'N/A')}")
+    print(f"⏰ Fuso Horário: {dados.get('timezone', 'N/A')}")
+    print("═" * 50)
+
+def main():
+    """Função principal"""
+    limpar_tela()
+    
+    logo = '''
+
+ ▄█████▄   ▄▄▄       ▄▄▄▄▄   ▄▄▄▄▄▄   ▄▄▄       ▄▄▄▄▄  
+ ██╔══██╗ ██▀▀█▄   ██▀▀▀▀█▄ ██▀▀▀▀█▄ ██▀▀█▄   ██▀▀▀▀█▄ 
+ ██║  ██║ ██   ██  ██     ██ ██     ██ ██   ██  ██     ██ 
+ ███▀▀███ ██   ██  ██     ██ ██     ██ ██   ██  ██     ██ 
+ ██║  ██║ ██   ██  ██     ██ ██     ██ ██   ██  ██     ██ 
+ ██║  ██║ ██▄▄█▀   ██▄▄▄▄█▀ ██▄▄▄▄█▀ ██▄▄█▀   ██▄▄▄▄█▀ 
+ ▀▀   ▀▀   ▀▀▀      ▀▀▀▀▀     ▀▀▀▀▀    ▀▀▀      ▀▀▀▀▀ 
+ 
+                By:Gustaa
+                Insta: gustavo rtz
+ 
+                   _______________
+ 
+                    Versão: v1.0
+                         🐀 
+                   _______________                  
+    '''
+    
+    # Exibe o logo
+    print(logo)  
+    print("=" * 50)
+    
+    while True:
+        print("\nOpções:")
+        print("1. Consultar IP específico")
+        print("2. Consultar IP atual")
+        print("3. Sair")
+        
+        opcao = input("\nEscolha uma opção (1-3): ").strip()
+        
+        if opcao == '1':
+            ip = input("\nDigite o IPv4: ").strip()
+            
+            # Validação básica do IP
+            if not ip.replace('.', '').isdigit() or ip.count('.') != 3:
+                print("❌ IP inválido! Formato correto: 192.168.1.1")
+                continue
+                
+            print(f"\n🔍 Consultando IP: {ip}...")
+            
+        elif opcao == '2':
+            # Obtém o IP público atual
+            try:
+                response = requests.get('https://api.ipify.org', timeout=5)
+                ip = response.text.strip()
+                print(f"\n🔍 Consultando seu IP atual: {ip}...")
+            except:
+                print("❌ Erro ao obter IP atual.")
+                continue
+                
+        elif opcao == '3':
+            print("👋 Saindo...")
+            break
+            
+        else:
+            print("❌ Opção inválida!")
+            continue
+        
+        # Obtém as informações do IP
+        dados = obter_informacoes_ip(ip)
+        
+        if dados:
+            exibir_informacoes(dados)
+            
+            # Opção para ver no mapa
+            ver_mapa = input("\n🗺️  Deseja ver a localização no mapa? (s/n): ").lower()
+            if ver_mapa == 's':
+                lat = dados.get('lat')
+                lon = dados.get('lon')
+                if lat and lon:
+                    mapa_url = f"https://www.google.com/maps?q={lat},{lon}"
+                    print(f"🌍 Abra no navegador: {mapa_url}")
+                else:
+                    print("❌ Coordenadas não disponíveis")
+        else:
+            print("❌ Erro ao obter informações do IP")
+            print("⚠️  Verifique sua conexão ou tente novamente")
+
+if __name__ == "__main__":
+    # Verifica se o requests está instalado
+    try:
+        import requests
+    except ImportError:
+        print("📦 Instalando biblioteca requests...")
+        os.system('pip install requests')
+        import requests
+    
+    main()

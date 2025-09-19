@@ -1,13 +1,23 @@
 import requests
 import json
 import os
+import socket
+import ipaddress
 
 def limpar_tela():
     """Limpa a tela do terminal"""
     os.system('clear' if os.name == 'posix' else 'cls')
 
+def validar_ip(ip):
+    """Valida se é IPv4 ou IPv6 válido"""
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except:
+        return False
+
 def obter_informacoes_ip(ip):
-    """Obtém informações de localização do IP"""
+    """Obtém informações de localização do IP (IPv4 ou IPv6)"""
     try:
         # API gratuita para geolocalização por IP
         url = f"http://ip-api.com/json/{ip}"
@@ -19,6 +29,9 @@ def obter_informacoes_ip(ip):
             if dados['status'] == 'success':
                 return dados
             else:
+                # Tenta outra API para IPv6
+                if ':' in ip:  # Se for IPv6
+                    return obter_info_ipv6(ip)
                 return None
         else:
             return None
@@ -28,12 +41,60 @@ def obter_informacoes_ip(ip):
     except json.JSONDecodeError:
         return None
 
+def obter_info_ipv6(ipv6):
+    """Tenta obter informações de IPv6 usando API alternativa"""
+    try:
+        url = f"https://ipapi.co/{ipv6}/json/"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            dados = response.json()
+            if 'error' not in dados:
+                # Converte para formato similar ao ip-api
+                return {
+                    'status': 'success',
+                    'query': ipv6,
+                    'country': dados.get('country_name'),
+                    'countryCode': dados.get('country_code'),
+                    'regionName': dados.get('region'),
+                    'city': dados.get('city'),
+                    'zip': dados.get('postal'),
+                    'isp': dados.get('org'),
+                    'org': dados.get('org'),
+                    'lat': dados.get('latitude'),
+                    'lon': dados.get('longitude'),
+                    'timezone': dados.get('timezone'),
+                    'ip_type': 'IPv6'
+                }
+        return None
+    except:
+        return None
+
+def obter_ip_publico():
+    """Obtém o IP público (IPv4 ou IPv6)"""
+    try:
+        # Tenta IPv4 primeiro
+        response = requests.get('https://api.ipify.org', timeout=5)
+        ipv4 = response.text.strip()
+        
+        # Tenta IPv6
+        try:
+            response_v6 = requests.get('https://api6.ipify.org', timeout=5)
+            ipv6 = response_v6.text.strip()
+            return ipv4, ipv6
+        except:
+            return ipv4, None
+            
+    except:
+        return None, None
+
 def exibir_informacoes(dados):
     """Exibe as informações formatadas"""
     print("═" * 50)
     print("🌍 INFORMAÇÕES DE LOCALIZAÇÃO")
     print("═" * 50)
     print(f"📡 IP: {dados.get('query', 'N/A')}")
+    print(f"🔧 Tipo: {dados.get('ip_type', 'IPv4')}")
     print(f"🏙️  País: {dados.get('country', 'N/A')}")
     print(f"🏛️  Código do País: {dados.get('countryCode', 'N/A')}")
     print(f"📍 Região: {dados.get('regionName', 'N/A')}")
@@ -61,11 +122,11 @@ def main():
  ▀▀   ▀▀   ▀▀▀      ▀▀▀▀▀     ▀▀▀▀▀    ▀▀▀      ▀▀▀▀▀ 
  
                 By:Gustaa
-                Insta: gustavo rtz
+                Insta: gustavo.rtz
  
                    _______________
  
-                    Versão: v1.0
+                    Versão: v2.0
                          🐀 
                    _______________                  
     '''
@@ -76,31 +137,43 @@ def main():
     
     while True:
         print("\nOpções:")
-        print("1. Consultar IP específico")
+        print("1. Consultar IP específico (IPv4/IPv6)")
         print("2. Consultar IP atual")
         print("3. Sair")
         
         opcao = input("\nEscolha uma opção (1-3): ").strip()
         
         if opcao == '1':
-            ip = input("\nDigite o IPv4: ").strip()
+            ip = input("\nDigite o IP (IPv4 ou IPv6): ").strip()
             
-            # Validação básica do IP
-            if not ip.replace('.', '').isdigit() or ip.count('.') != 3:
-                print("❌ IP inválido! Formato correto: 192.168.1.1")
+            # Validação do IP
+            if not validar_ip(ip):
+                print("❌ IP inválido! Use formato IPv4 (192.168.1.1) ou IPv6 (2001:db8::1)")
                 continue
                 
             print(f"\n🔍 Consultando IP: {ip}...")
             
         elif opcao == '2':
-            # Obtém o IP público atual
-            try:
-                response = requests.get('https://api.ipify.org', timeout=5)
-                ip = response.text.strip()
-                print(f"\n🔍 Consultando seu IP atual: {ip}...")
-            except:
+            # Obtém os IPs públicos
+            ipv4, ipv6 = obter_ip_publico()
+            
+            if ipv4:
+                print(f"\n📡 Seu IPv4: {ipv4}")
+            if ipv6:
+                print(f"📡 Seu IPv6: {ipv6}")
+                
+            if not ipv4 and not ipv6:
                 print("❌ Erro ao obter IP atual.")
                 continue
+                
+            # Pergunta qual IP consultar
+            if ipv4 and ipv6:
+                escolha = input("\nQual IP deseja consultar? (4=IPv4, 6=IPv6): ").strip()
+                ip = ipv6 if escolha == '6' else ipv4
+            else:
+                ip = ipv4 or ipv6
+                
+            print(f"\n🔍 Consultando IP: {ip}...")
                 
         elif opcao == '3':
             print("👋 Saindo...")
@@ -117,15 +190,13 @@ def main():
             exibir_informacoes(dados)
             
             # Opção para ver no mapa
-            ver_mapa = input("\n🗺️  Deseja ver a localização no mapa? (s/n): ").lower()
-            if ver_mapa == 's':
-                lat = dados.get('lat')
-                lon = dados.get('lon')
-                if lat and lon:
+            if dados.get('lat') and dados.get('lon'):
+                ver_mapa = input("\n🗺️  Deseja ver a localização no mapa? (s/n): ").lower()
+                if ver_mapa == 's':
+                    lat = dados.get('lat')
+                    lon = dados.get('lon')
                     mapa_url = f"https://www.google.com/maps?q={lat},{lon}"
                     print(f"🌍 Abra no navegador: {mapa_url}")
-                else:
-                    print("❌ Coordenadas não disponíveis")
         else:
             print("❌ Erro ao obter informações do IP")
             print("⚠️  Verifique sua conexão ou tente novamente")

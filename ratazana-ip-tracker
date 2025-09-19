@@ -19,38 +19,33 @@ def validar_ip(ip):
 def obter_informacoes_ip(ip):
     """Obtém informações de localização do IP (IPv4 ou IPv6)"""
     try:
-        # API gratuita para geolocalização por IP
+        # Tenta API principal primeiro
         url = f"http://ip-api.com/json/{ip}"
         response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
             dados = response.json()
-            
-            if dados['status'] == 'success':
+            if dados.get('status') == 'success':
+                dados['ip_type'] = 'IPv6' if ':' in ip else 'IPv4'
                 return dados
-            else:
-                # Tenta outra API para IPv6
-                if ':' in ip:  # Se for IPv6
-                    return obter_info_ipv6(ip)
-                return None
-        else:
-            return None
-            
-    except requests.exceptions.RequestException:
+        
+        # Se falhar, tenta API alternativa específica para IPv6
+        if ':' in ip:
+            return obter_info_ipv6(ip)
         return None
-    except json.JSONDecodeError:
+            
+    except:
         return None
 
 def obter_info_ipv6(ipv6):
-    """Tenta obter informações de IPv6 usando API alternativa"""
+    """Obtém informações de IPv6 usando API alternativa"""
     try:
         url = f"https://ipapi.co/{ipv6}/json/"
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, timeout=15)
         
         if response.status_code == 200:
             dados = response.json()
-            if 'error' not in dados:
-                # Converte para formato similar ao ip-api
+            if not dados.get('error'):
                 return {
                     'status': 'success',
                     'query': ipv6,
@@ -70,31 +65,25 @@ def obter_info_ipv6(ipv6):
     except:
         return None
 
-def obter_ip_publico():
-    """Obtém o IP público (IPv4 ou IPv6)"""
+def obter_ipv6_publico():
+    """Obtém apenas o IPv6 público"""
     try:
-        # Tenta IPv4 primeiro
-        response = requests.get('https://api.ipify.org', timeout=5)
-        ipv4 = response.text.strip()
-        
-        # Tenta IPv6
-        try:
-            response_v6 = requests.get('https://api6.ipify.org', timeout=5)
-            ipv6 = response_v6.text.strip()
-            return ipv4, ipv6
-        except:
-            return ipv4, None
-            
+        response = requests.get('https://api6.ipify.org', timeout=10)
+        return response.text.strip()
     except:
-        return None, None
+        return None
 
 def exibir_informacoes(dados):
     """Exibe as informações formatadas"""
+    if not dados:
+        print("❌ Não foi possível obter informações para este IP")
+        return
+        
     print("═" * 50)
     print("🌍 INFORMAÇÕES DE LOCALIZAÇÃO")
     print("═" * 50)
     print(f"📡 IP: {dados.get('query', 'N/A')}")
-    print(f"🔧 Tipo: {dados.get('ip_type', 'IPv4')}")
+    print(f"🔧 Tipo: {dados.get('ip_type', 'N/A')}")
     print(f"🏙️  País: {dados.get('country', 'N/A')}")
     print(f"🏛️  Código do País: {dados.get('countryCode', 'N/A')}")
     print(f"📍 Região: {dados.get('regionName', 'N/A')}")
@@ -109,6 +98,14 @@ def exibir_informacoes(dados):
 
 def main():
     """Função principal"""
+    # Verifica dependências
+    try:
+        import requests
+    except ImportError:
+        print("📦 Instalando biblioteca requests...")
+        os.system('pip install requests')
+        import requests
+    
     limpar_tela()
     
     logo = '''
@@ -126,56 +123,66 @@ def main():
  
                    _______________
  
-                    Versão: v2.0
+                    Versão: v2.1
                          🐀 
                    _______________                  
     '''
     
-    # Exibe o logo
     print(logo)  
     print("=" * 50)
     
     while True:
         print("\nOpções:")
         print("1. Consultar IP específico (IPv4/IPv6)")
-        print("2. Consultar IP atual")
-        print("3. Sair")
+        print("2. Consultar meu IPv4 atual")  
+        print("3. Consultar meu IPv6 atual")
+        print("4. Testar IPv6 de exemplo")
+        print("5. Sair")
         
-        opcao = input("\nEscolha uma opção (1-3): ").strip()
+        opcao = input("\nEscolha uma opção (1-5): ").strip()
         
         if opcao == '1':
             ip = input("\nDigite o IP (IPv4 ou IPv6): ").strip()
-            
-            # Validação do IP
             if not validar_ip(ip):
-                print("❌ IP inválido! Use formato IPv4 (192.168.1.1) ou IPv6 (2001:db8::1)")
+                print("❌ IP inválido!")
                 continue
-                
             print(f"\n🔍 Consultando IP: {ip}...")
             
         elif opcao == '2':
-            # Obtém os IPs públicos
-            ipv4, ipv6 = obter_ip_publico()
-            
-            if ipv4:
-                print(f"\n📡 Seu IPv4: {ipv4}")
-            if ipv6:
-                print(f"📡 Seu IPv6: {ipv6}")
-                
-            if not ipv4 and not ipv6:
-                print("❌ Erro ao obter IP atual.")
+            try:
+                ip = requests.get('https://api.ipify.org', timeout=5).text
+                print(f"\n🔍 Consultando seu IPv4: {ip}...")
+            except:
+                print("❌ Erro ao obter IPv4.")
                 continue
                 
-            # Pergunta qual IP consultar
-            if ipv4 and ipv6:
-                escolha = input("\nQual IP deseja consultar? (4=IPv4, 6=IPv6): ").strip()
-                ip = ipv6 if escolha == '6' else ipv4
-            else:
-                ip = ipv4 or ipv6
-                
-            print(f"\n🔍 Consultando IP: {ip}...")
-                
         elif opcao == '3':
+            ip = obter_ipv6_publico()
+            if ip:
+                print(f"\n🔍 Consultando seu IPv6: {ip}...")
+            else:
+                print("❌ IPv6 não disponível ou não detectado.")
+                continue
+                
+        elif opcao == '4':
+            # IPv6 de exemplo para teste
+            ipv6_exemplos = [
+                "2001:4860:4860::8888",
+                "2606:4700:4700::1111", 
+                "2a00:1450:4007:816::200e"
+            ]
+            print("\n🌐 IPv6 de exemplo:")
+            for i, ip_ex in enumerate(ipv6_exemplos, 1):
+                print(f"{i}. {ip_ex}")
+            escolha = input("\nEscolha um (1-3): ").strip()
+            if escolha in ['1', '2', '3']:
+                ip = ipv6_exemplos[int(escolha)-1]
+                print(f"\n🔍 Consultando IPv6 de teste: {ip}...")
+            else:
+                print("❌ Opção inválida!")
+                continue
+                
+        elif opcao == '5':
             print("👋 Saindo...")
             break
             
@@ -183,31 +190,18 @@ def main():
             print("❌ Opção inválida!")
             continue
         
-        # Obtém as informações do IP
+        # Obtém as informações
         dados = obter_informacoes_ip(ip)
+        exibir_informacoes(dados)
         
-        if dados:
-            exibir_informacoes(dados)
-            
-            # Opção para ver no mapa
-            if dados.get('lat') and dados.get('lon'):
-                ver_mapa = input("\n🗺️  Deseja ver a localização no mapa? (s/n): ").lower()
-                if ver_mapa == 's':
-                    lat = dados.get('lat')
-                    lon = dados.get('lon')
-                    mapa_url = f"https://www.google.com/maps?q={lat},{lon}"
-                    print(f"🌍 Abra no navegador: {mapa_url}")
-        else:
-            print("❌ Erro ao obter informações do IP")
-            print("⚠️  Verifique sua conexão ou tente novamente")
+        # Opção do mapa
+        if dados and dados.get('lat') and dados.get('lon'):
+            ver_mapa = input("\n🗺️  Ver no mapa? (s/n): ").lower()
+            if ver_mapa == 's':
+                mapa_url = f"https://maps.google.com/?q={dados['lat']},{dados['lon']}"
+                print(f"🌍 Abra: {mapa_url}")
+        
+        input("\n⏎ Pressione Enter para continuar...")
 
 if __name__ == "__main__":
-    # Verifica se o requests está instalado
-    try:
-        import requests
-    except ImportError:
-        print("📦 Instalando biblioteca requests...")
-        os.system('pip install requests')
-        import requests
-    
     main()

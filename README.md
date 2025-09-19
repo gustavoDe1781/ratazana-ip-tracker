@@ -1,3 +1,6 @@
+# atualizado, nova opção 
+` IPV6, consulta meu IPV6.`
+
 # Ratazana IP Tracker
 
 Um rastreador de IP escrito em Python que fornece informações de geolocalização.
